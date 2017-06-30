@@ -1,0 +1,219 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Miroslav Grbovic"
+date: "30 June 2017"
+output: html_document
+keep_md: yes
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#Set Working Directory
+setwd("C:/_MIROSLAV/POSAO/Coursera/MyRdirectory/8. Practical Machine Learning/W4")
+
+#Install and Load required packages
+#install.packages("caret")
+#install.packages("randomForest")
+#install.packages("rpart")
+#install.packages("rpart.plot")
+#install.packages("RColorBrewer")
+#install.packages("rattle")
+#install.packages("https://cran.r-project.org/bin/windows/contrib/3.3/RGtk2_2.20.31.zip", repos=NULL)
+
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+
+```
+
+#Background
+Using devices such as Jawbone Up, Nike FuelBand and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, we will use data from accelerometers on the belt, forearm, arm and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The "classe" variable  contains 5 different ways barbell lifts were performed correctly and incorrectly:
+
+* Class A: exactly according to the specification
+* Class B: throwing the elbows to the front
+* Class C: lifting the dumbbell only halfway
+* Class D: lowering the dumbbell only halfway
+* Class E: throwing the hips to the front
+
+
+The goal of our project is to predict the manner in which they did the exercise - to predict the "classe" variable.
+
+
+#Downloading and reading data
+
+We are downloading and reading data from provided URLs:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+set.seed(54321)
+
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+#download.file(trainUrl, destfile="train_data.csv")
+#download.file(testUrl, destfile="test_data.csv")
+
+train_data  <- read.csv("train_data.csv", na.strings=c("NA","#DIV/0!",""))
+test_data <- read.csv("test_data.csv", na.strings=c("NA","#DIV/0!",""))
+
+```
+
+#Cross-validation
+
+Cross-validation techniques are used for estimating accuracy of Prediction Model on Test set by using the Training set i.e. out-of-sample accuracy of Prediction Model. Cross-validation approach is:
+
+1. Use the Training set
+2. Split it into training/test sets
+3. Build a model on the training set
+4. Evaluate on the test set
+
+We are splitting Training data set into 2 data sets: 60% for training and 40% for testing:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+inTrain <- createDataPartition(y=train_data$classe, p = 0.60, list=FALSE)
+training <- train_data[inTrain,]
+testing <- train_data[-inTrain,]
+
+dim(training)
+dim(testing)
+
+```
+
+#Expected out-of-sample error
+The expected out-of-sample error will correspond to the quantity: 1-accuracy in the cross-validation data. Accuracy is the proportion of correct classified observation over the total sample in the subTesting data set. Expected accuracy is the expected accuracy in the out-of-sample data set (i.e. original testing data set). Thus, the expected value of the out-of-sample error will correspond to the expected number of missclassified observations/total observations in the testing data set, which is the quantity: 1-accuracy found from the cross-validation data set.
+
+Our outcome variable "classe" is an unordered factor variable. Thus, we can choose our error type as 1-accuracy. 
+##How the model was built
+We have a large sample size in the Training data set. This allow us to divide our training data set into subTraining and subTesting data sets to allow cross-validation. Features with all missing values will be discarded as well as features that are irrelevant. All other features will be kept as relevant variables. Decision tree and random forest algorithms are known for their ability of detecting the features that are important for classification.
+
+#Cleaning the data
+
+In training data set, removing first 7 variables because these are made up of metadata that would cause the model to perform poorly:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+training <- training[,-c(1:7)]
+
+```
+
+In training data set, remove variables that have near zero variance (e.g. have one unique value):
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+x <- nearZeroVar(training, saveMetrics=TRUE)
+training <- training[, x$nzv==FALSE]
+
+```
+
+In training data set, remove variables that have 60% or more of the values as "NA":
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+training_clean <- training
+for(i in 1:length(training)) {
+        if( sum( is.na( training[, i] ) ) /nrow(training) >= .6) {
+                for(j in 1:length(training_clean)) {
+                        if( length( grep(names(training[i]), names(training_clean)[j]) ) == 1)  {
+                                training_clean <- training_clean[ , -j]
+                        }   
+                } 
+        }
+}
+
+# Set the new cleaned up dataset back to the old dataset name
+training <- training_clean
+
+```
+
+In test_data data set (original testing data set), remove variable "classe" as well as variables which are removed from training data set:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+#Drop the class variable:
+columns <- colnames(training)
+columns2 <- colnames(training[, -53])
+
+#Subset test_data data set on the variables that are in the training data set:
+test_data <- test_data[columns2]
+dim(test_data)
+
+```
+
+#Prediction with Random Forest machine learning algorithm
+
+Random Forest model is built on the training data set, then the results are evaluated on the testing data set
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+#Train the model for predicting variable "classe" with other variables
+modFit <- randomForest(classe ~ ., data=training)
+
+#Predict variable "classe" using testing data
+prediction <- predict(modFit, testing)
+
+#Get the confustion matrix to see prediction model accuracy
+CMrf <- confusionMatrix(prediction, testing$classe)
+print(CMrf)
+
+```
+
+##Model accuracy and expected out-of-sample error
+The model is 99.32% accurate on the testing data partitioned from the training data. The expected out of sample error is roughly 0.68%:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+accuracy <- round(CMrf$overall['Accuracy'] * 100, 2)
+print(accuracy)
+
+oos_error <- round(100*(1 - CMrf$overall['Accuracy']),2)
+print(oos_error)
+
+```
+
+
+#Prediction with Decision Tree machine learning algorithm
+
+Decision Tree model is built on the training data set, then the results are evaluated on the testing data set
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+#Train the model for predicting variable "classe" with other variables
+modFit2 <- rpart(classe ~ ., data=training, method="class")
+
+#Predict variable "classe" using testing data
+prediction2 <- predict(modFit2, testing, type="class")
+
+#Get the confustion matrix to see prediction model accuracy
+CMdt <- confusionMatrix(prediction2, testing$classe)
+print(CMdt)
+
+```
+
+##Model accuracy and expected out-of-sample error
+The model is 73.86% accurate on the testing data partitioned from the training data. The expected out of sample error is roughly 26%:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+accuracy <- round(CMdt$overall['Accuracy'] * 100, 2)
+print(accuracy)
+
+oos_error <- round(100*(1 - CMdt$overall['Accuracy']),2)
+print(oos_error)
+
+```
+
+We plot dendogram for Decision Tree model:
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+fancyRpartPlot(modFit2)
+
+```
+
+#Prediction on the Test data set
+The Random Forest model gave an accuracy of 99.32%, which is much higher than the 73.86% accuracy from the Decision Tree. So we will use the Random Forest model to make the predictions on the test data set to predict the way 20 participates performed the exercise.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+final_prediction <- predict(modFit, test_data, type="class")
+print(final_prediction)
+
+```
+
+#Conclusion
+There are many different machine learning algorithms. I chose to compare a Random Forest and Decision Tree model. For this data, the Random Forest proved to be a more accurate way to predict the manner in which the exercise was done.
+
