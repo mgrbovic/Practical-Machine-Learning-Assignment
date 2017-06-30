@@ -1,33 +1,8 @@
----
-title: "Practical Machine Learning - Course Project"
-author: "Miroslav Grbovic"
-date: "30 June 2017"
-output:
-  html_document:
-    keep_md: true
----
+# Practical Machine Learning - Course Project
+Miroslav Grbovic  
+30 June 2017  
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-#Set Working Directory
-setwd("C:/_MIROSLAV/POSAO/Coursera/MyRdirectory/8. Practical Machine Learning/W4")
 
-#Install and Load required packages
-#install.packages("caret")
-#install.packages("randomForest")
-#install.packages("rpart")
-#install.packages("rpart.plot")
-#install.packages("RColorBrewer")
-#install.packages("rattle")
-#install.packages("https://cran.r-project.org/bin/windows/contrib/3.3/RGtk2_2.20.31.zip", repos=NULL)
-
-library(caret)
-library(randomForest)
-library(rpart)
-library(rpart.plot)
-library(RColorBrewer)
-library(rattle)
-
-```
 
 #Background
 Using devices such as Jawbone Up, Nike FuelBand and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
@@ -47,8 +22,8 @@ The goal of our project is to predict the manner in which they did the exercise 
 #Downloading and reading data
 
 We are downloading and reading data from provided URLs:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 set.seed(54321)
 
 trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
@@ -59,7 +34,6 @@ download.file(testUrl, destfile="test_data.csv")
 
 train_data  <- read.csv("train_data.csv", na.strings=c("NA","#DIV/0!",""))
 test_data <- read.csv("test_data.csv", na.strings=c("NA","#DIV/0!",""))
-
 ```
 
 #Cross-validation
@@ -72,15 +46,25 @@ Cross-validation techniques are used for estimating accuracy of Prediction Model
 4. Evaluate on the test set
 
 We are splitting Training data set into 2 data sets: 60% for training and 40% for testing:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 inTrain <- createDataPartition(y=train_data$classe, p = 0.60, list=FALSE)
 training <- train_data[inTrain,]
 testing <- train_data[-inTrain,]
 
 dim(training)
-dim(testing)
+```
 
+```
+## [1] 11776   160
+```
+
+```r
+dim(testing)
+```
+
+```
+## [1] 7846  160
 ```
 
 #Expected out-of-sample error
@@ -93,23 +77,21 @@ We have a large sample size in the Training data set. This allow us to divide ou
 #Cleaning the data
 
 In training data set, removing first 7 variables because these are made up of metadata that would cause the model to perform poorly:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 training <- training[,-c(1:7)]
-
 ```
 
 In training data set, remove variables that have near zero variance (e.g. have one unique value):
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 x <- nearZeroVar(training, saveMetrics=TRUE)
 training <- training[, x$nzv==FALSE]
-
 ```
 
 In training data set, remove variables that have 60% or more of the values as "NA":
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 training_clean <- training
 for(i in 1:length(training)) {
         if( sum( is.na( training[, i] ) ) /nrow(training) >= .6) {
@@ -123,12 +105,11 @@ for(i in 1:length(training)) {
 
 # Set the new cleaned up dataset back to the old dataset name
 training <- training_clean
-
 ```
 
 In test_data data set (original testing data set), remove variable "classe" as well as variables which are removed from training data set:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 #Drop the class variable:
 columns <- colnames(training)
 columns2 <- colnames(training[, -53])
@@ -136,14 +117,17 @@ columns2 <- colnames(training[, -53])
 #Subset test_data data set on the variables that are in the training data set:
 test_data <- test_data[columns2]
 dim(test_data)
+```
 
+```
+## [1] 20 52
 ```
 
 #Prediction with Random Forest machine learning algorithm
 
 Random Forest model is built on the training data set, then the results are evaluated on the testing data set
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 #Train the model for predicting variable "classe" with other variables
 modFit <- randomForest(classe ~ ., data=training)
 
@@ -153,27 +137,71 @@ prediction <- predict(modFit, testing)
 #Get the confustion matrix to see prediction model accuracy
 CMrf <- confusionMatrix(prediction, testing$classe)
 print(CMrf)
+```
 
+```
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 2225    9    0    0    0
+##          B    7 1504   10    0    0
+##          C    0    5 1357   17    0
+##          D    0    0    1 1269    4
+##          E    0    0    0    0 1438
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9932          
+##                  95% CI : (0.9912, 0.9949)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.9915          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9969   0.9908   0.9920   0.9868   0.9972
+## Specificity            0.9984   0.9973   0.9966   0.9992   1.0000
+## Pos Pred Value         0.9960   0.9888   0.9840   0.9961   1.0000
+## Neg Pred Value         0.9988   0.9978   0.9983   0.9974   0.9994
+## Prevalence             0.2845   0.1935   0.1744   0.1639   0.1838
+## Detection Rate         0.2836   0.1917   0.1730   0.1617   0.1833
+## Detection Prevalence   0.2847   0.1939   0.1758   0.1624   0.1833
+## Balanced Accuracy      0.9976   0.9940   0.9943   0.9930   0.9986
 ```
 
 ##Model accuracy and expected out-of-sample error
 The model is 99.32% accurate on the testing data partitioned from the training data. The expected out of sample error is roughly 0.68%:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 accuracy <- round(CMrf$overall['Accuracy'] * 100, 2)
 print(accuracy)
+```
 
+```
+## Accuracy 
+##    99.32
+```
+
+```r
 oos_error <- round(100*(1 - CMrf$overall['Accuracy']),2)
 print(oos_error)
+```
 
+```
+## Accuracy 
+##     0.68
 ```
 
 
 #Prediction with Decision Tree machine learning algorithm
 
 Decision Tree model is built on the training data set, then the results are evaluated on the testing data set
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 #Train the model for predicting variable "classe" with other variables
 modFit2 <- rpart(classe ~ ., data=training, method="class")
 
@@ -183,36 +211,86 @@ prediction2 <- predict(modFit2, testing, type="class")
 #Get the confustion matrix to see prediction model accuracy
 CMdt <- confusionMatrix(prediction2, testing$classe)
 print(CMdt)
+```
 
+```
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 2047  317   41  147   65
+##          B   44  736   62   35   61
+##          C   60  185 1120  193  176
+##          D   30  107   77  813   61
+##          E   51  173   68   98 1079
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.7386          
+##                  95% CI : (0.7287, 0.7483)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc > NIR] : < 2.2e-16       
+##                                           
+##                   Kappa : 0.6676          
+##  Mcnemar's Test P-Value : < 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9171  0.48485   0.8187   0.6322   0.7483
+## Specificity            0.8985  0.96808   0.9052   0.9581   0.9391
+## Pos Pred Value         0.7822  0.78465   0.6459   0.7472   0.7345
+## Neg Pred Value         0.9646  0.88680   0.9594   0.9300   0.9431
+## Prevalence             0.2845  0.19347   0.1744   0.1639   0.1838
+## Detection Rate         0.2609  0.09381   0.1427   0.1036   0.1375
+## Detection Prevalence   0.3335  0.11955   0.2210   0.1387   0.1872
+## Balanced Accuracy      0.9078  0.72646   0.8620   0.7951   0.8437
 ```
 
 ##Model accuracy and expected out-of-sample error
 The model is 73.86% accurate on the testing data partitioned from the training data. The expected out of sample error is roughly 26%:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 accuracy <- round(CMdt$overall['Accuracy'] * 100, 2)
 print(accuracy)
+```
 
+```
+## Accuracy 
+##    73.86
+```
+
+```r
 oos_error <- round(100*(1 - CMdt$overall['Accuracy']),2)
 print(oos_error)
+```
 
+```
+## Accuracy 
+##    26.14
 ```
 
 We plot dendogram for Decision Tree model:
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 fancyRpartPlot(modFit2)
-
 ```
+
+![](Practical_Machine_Learning_-_Course_Project_files/figure-html/unnamed-chunk-12-1.png)<!-- -->
 
 #Prediction on the Test data set
 The Random Forest model gave an accuracy of 99.32%, which is much higher than the 73.86% accuracy from the Decision Tree. So we will use the Random Forest model to make the predictions on the test data set to predict the way 20 participates performed the exercise.
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
 
+```r
 final_prediction <- predict(modFit, test_data, type="class")
 print(final_prediction)
+```
 
+```
+##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
 ```
 
 #Conclusion
