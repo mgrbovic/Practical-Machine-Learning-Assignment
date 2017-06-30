@@ -2,8 +2,8 @@
 title: "Practical Machine Learning - Course Project"
 author: "Miroslav Grbovic"
 date: "30 June 2017"
-output: html_document
-keep_md: yes
+output:
+  html_document: default
 ---
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
@@ -53,8 +53,8 @@ set.seed(54321)
 trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 
-#download.file(trainUrl, destfile="train_data.csv")
-#download.file(testUrl, destfile="test_data.csv")
+download.file(trainUrl, destfile="train_data.csv")
+download.file(testUrl, destfile="test_data.csv")
 
 train_data  <- read.csv("train_data.csv", na.strings=c("NA","#DIV/0!",""))
 test_data <- read.csv("test_data.csv", na.strings=c("NA","#DIV/0!",""))
